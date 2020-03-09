@@ -10,6 +10,15 @@ class WorkbookProcessor(private val workbook: XSSFWorkbook) {
 
     private val outputWorkbook: XSSFWorkbook = XSSFWorkbook()
 
+    private val precisionStyle: CellStyle
+
+    init {
+        precisionStyle = outputWorkbook.createCellStyle()
+        val dataFormat = outputWorkbook.createDataFormat()
+        val precisionFormat = dataFormat.getFormat("0.00")
+        precisionStyle.dataFormat = precisionFormat
+    }
+
     fun process(): XSSFWorkbook {
         for (sheet in workbook) {
             val outputSheet = outputWorkbook.createSheet(sheet.sheetName)
@@ -85,11 +94,13 @@ class WorkbookProcessor(private val workbook: XSSFWorkbook) {
                     price = row[i].value.toDouble() / multiplier
                     val outputCell = outputRow.createCell(i, CellType.NUMERIC)
                     outputCell.setCellValue(price)
+                    outputCell.cellStyle = precisionStyle
                 }
                 // cost
                 6 -> {
                     val outputCell = outputRow.createCell(i, CellType.NUMERIC)
                     outputCell.setCellValue(price!! * amount!!)
+                    outputCell.cellStyle = precisionStyle
                 }
                 else -> {
                     val outputCell = outputRow.createCell(i, CellType.STRING)
