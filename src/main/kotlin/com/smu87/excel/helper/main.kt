@@ -7,6 +7,7 @@ import javax.swing.JFileChooser
 import javax.swing.JFrame
 import javax.swing.UIManager
 import javax.swing.filechooser.FileNameExtensionFilter
+import kotlin.math.roundToInt
 
 
 // layout:
@@ -86,6 +87,7 @@ private fun processRow(row: Row, outputRow: Row) {
     var multiplier = 1
     var price: Double? = null
     var amount: Double? = null
+    var isCountable = false
     for (i in 0 until 7) {
         when (i) {
             // number
@@ -104,12 +106,18 @@ private fun processRow(row: Row, outputRow: Row) {
                 } else {
                     unit
                 }
+                if ("шт" in unitValue) {
+                    isCountable = true
+                }
                 outputCell.setCellValue(unitValue)
             }
             // amount
             4 -> {
                 val value = row[i].value
                 amount = value.substringBefore(" x").replace(",", ".").toDouble() * multiplier
+                if (isCountable) {
+                    amount = amount.roundToInt().toDouble()
+                }
                 val outputCell = outputRow.createCell(i, CellType.NUMERIC)
                 outputCell.setCellValue(amount)
             }
