@@ -16,6 +16,10 @@ dependencies {
     implementation(kotlin("stdlib-jdk8"))
     implementation("org.apache.poi:poi:4.1.2")
     implementation("org.apache.poi:poi-ooxml:4.1.2")
+    implementation("org.apache.logging.log4j:log4j-api:2.13.1")
+    implementation("org.apache.logging.log4j:log4j-core:2.13.1")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.10.3")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.10.3")
 }
 
 version = "0.1"
@@ -30,7 +34,7 @@ tasks {
 
     jar {
         manifest {
-            attributes("Main-Class" to "com.smu87.excel.helper.MainKt")
+            attributes("Main-Class" to "com.smu87.excel.helper.Main")
         }
     }
 

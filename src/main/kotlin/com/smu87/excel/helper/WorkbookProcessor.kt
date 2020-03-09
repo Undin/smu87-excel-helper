@@ -1,5 +1,7 @@
 package com.smu87.excel.helper
 
+import org.apache.logging.log4j.LogManager
+import org.apache.logging.log4j.Logger
 import org.apache.poi.ss.usermodel.*
 import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import kotlin.math.roundToInt
@@ -27,14 +29,21 @@ class WorkbookProcessor(private val workbook: XSSFWorkbook) {
     }
 
     fun process(): XSSFWorkbook {
+        LOG.info("Start processing. Sheets: ${workbook.numberOfSheets}")
         for (sheet in workbook) {
             val outputSheet = outputWorkbook.createSheet(sheet.sheetName)
-            processSheet(sheet, outputSheet)
+            try {
+                processSheet(sheet, outputSheet)
+            } catch (e: Exception) {
+                LOG.error(e.message, e)
+            }
         }
+        LOG.info("End processing")
         return outputWorkbook
     }
 
     private fun processSheet(sheet: Sheet, outputSheet: Sheet) {
+        LOG.info("Start processing of `${sheet.sheetName}` sheet")
         val titleRow = outputSheet.createRow(0)
         for ((index, columnName) in listOf(
             "№",
@@ -59,6 +68,7 @@ class WorkbookProcessor(private val workbook: XSSFWorkbook) {
                 }
                 processRow(row, outputRow)
             }
+        LOG.info("End processing of `${sheet.sheetName}` sheet")
     }
 
     private fun processRow(row: Row, outputRow: Row) {
@@ -126,6 +136,9 @@ class WorkbookProcessor(private val workbook: XSSFWorkbook) {
     }
 
     companion object {
+
+        private val LOG: Logger = LogManager.getLogger(WorkbookProcessor::class.java)
+
         private val SECONDARY_SUPPLIER: Regex = """\d*-\d*""".toRegex()
         private val UNIT_PATTERN: Regex = """(?<count>\d+) (?<unit>.+)""".toRegex()
         private val ROW_COMPARATOR: Comparator<Row> = Comparator.comparing<Row, Boolean> {

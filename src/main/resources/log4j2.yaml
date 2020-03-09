@@ -1,0 +1,24 @@
+Configuration:
+  Appenders:
+    Console:
+      PatternLayout:
+        pattern: '%d{yyyy-MM-dd HH:mm:ss a} [%t] %-5level %logger{36} - %msg%n'
+      name: console
+      target: SYSTEM_OUT
+    RollingFile:
+      - name: rolling-file
+        fileName: logs/app.log
+        filePattern: "logs/$${date:yyyy-MM}/app-%d{dd-MM-yyyy}-%i.log.gz"
+        PatternLayout:
+          pattern: "[%-5level] %d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %c{1} - %msg%n"
+        Policies:
+          SizeBasedTriggeringPolicy:
+            size: 10MB
+        DefaultRollOverStrategy:
+          max: 10
+  Loggers:
+    Root:
+      AppenderRef:
+        - ref: console
+        - ref: rolling-file
+      level: trace
