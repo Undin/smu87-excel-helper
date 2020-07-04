@@ -12,6 +12,7 @@ class WorkbookProcessor(private val workbook: XSSFWorkbook) {
 
     private val outputWorkbook: XSSFWorkbook = XSSFWorkbook()
 
+    private val commonStyle: CellStyle
     private val precisionStyle: CellStyle
     private val boldStyle: CellStyle
     private val boldPrecisionStyle: CellStyle
@@ -20,10 +21,17 @@ class WorkbookProcessor(private val workbook: XSSFWorkbook) {
         val dataFormat = outputWorkbook.createDataFormat()
         val precisionFormatIndex = dataFormat.getFormat("0.00")
 
+        val commonFont = outputWorkbook.createFont()
+        commonFont.fontName = FONT_NAME
+        commonFont.setFontHeight(FONT_SIZE)
+
         val boldFont = outputWorkbook.createFont()
         boldFont.bold = true
+        boldFont.fontName = FONT_NAME
+        boldFont.setFontHeight(FONT_SIZE)
 
-        precisionStyle = outputWorkbook.createCellStyle(null, precisionFormatIndex)
+        commonStyle = outputWorkbook.createCellStyle(commonFont, null)
+        precisionStyle = outputWorkbook.createCellStyle(commonFont, precisionFormatIndex)
         boldStyle = outputWorkbook.createCellStyle(boldFont, null)
         boldPrecisionStyle = outputWorkbook.createCellStyle(boldFont, precisionFormatIndex)
     }
@@ -56,6 +64,7 @@ class WorkbookProcessor(private val workbook: XSSFWorkbook) {
         ).withIndex()) {
             val cell = titleRow.createCell(index, CellType.STRING)
             cell.setCellValue(columnName)
+            cell.cellStyle = commonStyle
         }
 
         sheet
@@ -130,7 +139,7 @@ class WorkbookProcessor(private val workbook: XSSFWorkbook) {
             outputCell.cellStyle = when {
                 row.isMainSupplierRow -> if (setPrecisionStyle) boldPrecisionStyle else boldStyle
                 setPrecisionStyle -> precisionStyle
-                else -> null
+                else -> commonStyle
             }
         }
     }
@@ -138,6 +147,9 @@ class WorkbookProcessor(private val workbook: XSSFWorkbook) {
     companion object {
 
         private val LOG: Logger = LogManager.getLogger(WorkbookProcessor::class.java)
+
+        private const val FONT_NAME: String = "Times New Roman"
+        private const val FONT_SIZE: Double = 10.0
 
         private val SECONDARY_SUPPLIER: Regex = """\d*-\d*""".toRegex()
         private val UNIT_PATTERN: Regex = """(?<count>\d+) (?<unit>.+)""".toRegex()
