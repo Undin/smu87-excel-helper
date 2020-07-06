@@ -84,6 +84,7 @@ class WorkbookProcessor(private val workbook: XSSFWorkbook) {
         val (fromMainSuppliers, fromSecondarySuppliers) = sheet
             .filter { !it.getCell(4).value.startsWith("-") } // negative amount should be ignored
             .map { collectMaterialInfo(it) }
+            .filter { it.cost != 0.0 }
             .partition { it.material.isFromMainSupplier }
 
         val collapsedFromSecondarySuppliers = fromSecondarySuppliers
