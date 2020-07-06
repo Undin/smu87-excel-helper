@@ -67,35 +67,41 @@ class WorkbookProcessor(private val workbook: XSSFWorkbook) {
             cell.cellStyle = commonStyle
         }
 
-        sheet
-            .filter { !it.getCell(4).value.startsWith("-") }
-            .sortedWith(ROW_COMPARATOR)
-            .forEachIndexed { index, row ->
-                val outputRow = outputSheet.createRow(index + 1)
-                if (outputRow.isMainSupplierRow) {
-                    outputRow.rowStyle = boldStyle
-                }
-                processRow(row, outputRow)
+        val materials = collectMaterialInfo(sheet)
+
+        for ((index, info) in materials.withIndex()) {
+            val outputRow = outputSheet.createRow(index + 1)
+            if (info.material.isFromMainSupplier) {
+                outputRow.rowStyle = boldStyle
             }
+            writeToRow(info, outputRow)
+        }
+
         LOG.info("End processing of `${sheet.sheetName}` sheet")
     }
 
-    private fun processRow(row: Row, outputRow: Row) {
-        var multiplier = 1
-        var price: Double? = null
-        var amount: Double? = null
-        var isCountable = false
-        for (i in 0 until 7) {
-            // number, amount, price and cost are numbers. otherwise it's string
-            val cellType = if (i in listOf(0, 4, 5, 6)) CellType.NUMERIC else CellType.STRING
-            val outputCell = outputRow.createCell(i, cellType)
-            var setPrecisionStyle = false
+    private fun collectMaterialInfo(sheet: Sheet): List<MaterialInfo> {
+        val (fromMainSuppliers, fromSecondarySuppliers) = sheet
+            .filter { !it.getCell(4).value.startsWith("-") } // negative amount should be ignored
+            .map { collectMaterialInfo(it) }
+            .partition { it.material.isFromMainSupplier }
 
+        val collapsedFromSecondarySuppliers = fromSecondarySuppliers
+            .groupBy { it.material }
+            .map { (_, materials) -> materials.reduce { acc, info -> acc + info } }
+
+        return (fromMainSuppliers + collapsedFromSecondarySuppliers).sortedBy { it.material }
+    }
+
+    private fun collectMaterialInfo(row: Row): MaterialInfo {
+        val builder = MaterialInfoBuilder()
+        var multiplier = 1
+        var isCountable = false
+
+        for (i in 1 until 6) {
             when (i) {
-                // number
-                0 -> {
-                    outputCell.setCellValue(outputRow.rowNum.toDouble())
-                }
+                1 -> builder.supplier = row[i].value
+                2 -> builder.name = row[i].value
                 // unit
                 3 -> {
                     val unit = row[i].value
@@ -109,35 +115,55 @@ class WorkbookProcessor(private val workbook: XSSFWorkbook) {
                     if ("шт" in unitValue) {
                         isCountable = true
                     }
-                    outputCell.setCellValue(unitValue)
+                    builder.units = unitValue
                 }
                 // amount
                 4 -> {
                     val value = row[i].value
-                    amount = value.substringBefore(" x").replace(",", ".").toDouble() * multiplier
+                    var amount = value.substringBefore(" x").replace(",", ".").toDouble() * multiplier
                     if (isCountable) {
                         amount = amount.roundToInt().toDouble()
                     }
-                    outputCell.setCellValue(amount)
+                    builder.amount = amount
                 }
                 // price
-                5 -> {
-                    price = row[i].value.toDouble() / multiplier
-                    outputCell.setCellValue(price)
-                    setPrecisionStyle = true
-                }
+                5 -> builder.price = row[i].value.toDouble() / multiplier
+            }
+        }
+
+        return builder.build()
+    }
+
+    private fun writeToRow(info: MaterialInfo, outputRow: Row) {
+        for (i in 0 until 7) {
+            val (value, setPrecisionStyle) = when (i) {
+                // number
+                0 -> outputRow.rowNum.toDouble() to false
+                // supplier
+                1 -> info.material.supplier to false
+                // material name
+                2 -> info.material.name to false
+                // unit
+                3 -> info.material.units to false
+                // amount
+                4 -> info.amount to false
+                // price
+                5 -> info.material.price to true
                 // cost
-                6 -> {
-                    outputCell.setCellValue(price!! * amount!!)
-                    setPrecisionStyle = true
-                }
-                else -> {
-                    outputCell.setCellValue(row[i].value)
-                }
+                6 -> info.cost to true
+                else -> error("Unexpected cell index: $i")
+            }
+
+            val cellType = if (value is Double) CellType.NUMERIC else CellType.STRING
+            val outputCell = outputRow.createCell(i, cellType)
+            when (value) {
+                is Double -> outputCell.setCellValue(value)
+                is String -> outputCell.setCellValue(value)
+                else -> error("Unexpected value type: ${value.javaClass}")
             }
 
             outputCell.cellStyle = when {
-                row.isMainSupplierRow -> if (setPrecisionStyle) boldPrecisionStyle else boldStyle
+                info.material.isFromMainSupplier -> if (setPrecisionStyle) boldPrecisionStyle else boldStyle
                 setPrecisionStyle -> precisionStyle
                 else -> commonStyle
             }
@@ -151,15 +177,7 @@ class WorkbookProcessor(private val workbook: XSSFWorkbook) {
         private const val FONT_NAME: String = "Times New Roman"
         private const val FONT_SIZE: Double = 10.0
 
-        private val SECONDARY_SUPPLIER: Regex = """\d*-\d*""".toRegex()
         private val UNIT_PATTERN: Regex = """(?<count>\d+) (?<unit>.+)""".toRegex()
-        private val ROW_COMPARATOR: Comparator<Row> = Comparator.comparing<Row, Boolean> {
-            !it.isMainSupplierRow
-        }.thenBy {
-            it.getCell(2).value
-        }
-
-        private val Row.isMainSupplierRow: Boolean get() = !getCell(1).value.matches(SECONDARY_SUPPLIER)
 
         private operator fun Row.get(index: Int): Cell? = getCell(index)
 
