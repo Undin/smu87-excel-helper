@@ -81,17 +81,13 @@ class WorkbookProcessor(private val workbook: XSSFWorkbook) {
     }
 
     private fun collectMaterialInfo(sheet: Sheet): List<MaterialInfo> {
-        val (fromMainSuppliers, fromSecondarySuppliers) = sheet
+        return sheet
             .filter { !it.getCell(4).value.startsWith("-") } // negative amount should be ignored
             .map { collectMaterialInfo(it) }
             .filter { it.cost != 0.0 }
-            .partition { it.material.isFromMainSupplier }
-
-        val collapsedFromSecondarySuppliers = fromSecondarySuppliers
             .groupBy { it.material }
             .map { (_, materials) -> materials.reduce { acc, info -> acc + info } }
-
-        return (fromMainSuppliers + collapsedFromSecondarySuppliers).sortedBy { it.material }
+            .sortedBy { it.material }
     }
 
     private fun collectMaterialInfo(row: Row): MaterialInfo {
