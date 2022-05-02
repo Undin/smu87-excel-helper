@@ -132,31 +132,32 @@ class WorkbookProcessor(private val workbook: XSSFWorkbook) {
     }
 
     private fun writeToRow(info: MaterialInfo, outputRow: Row) {
+        val rowNum = outputRow.rowNum + 1
         for (i in 0 until 7) {
             val (value, setPrecisionStyle) = when (i) {
                 // number
-                0 -> outputRow.rowNum.toDouble() to false
+                0 -> Number(outputRow.rowNum.toDouble()) to false
                 // supplier
-                1 -> info.material.supplier to false
+                1 -> Str(info.material.supplier) to false
                 // material name
-                2 -> info.material.name to false
+                2 -> Str(info.material.name) to false
                 // unit
-                3 -> info.material.units to false
+                3 -> Str(info.material.units) to false
                 // amount
-                4 -> info.amount to false
+                4 -> Number(info.amount) to false
                 // price
-                5 -> info.material.price to true
+                5 -> Number(info.material.price) to true
                 // cost
-                6 -> info.cost to true
+                6 -> Formula("ROUND(E$rowNum*F$rowNum,2)") to true
                 else -> error("Unexpected cell index: $i")
             }
 
-            val cellType = if (value is Double) CellType.NUMERIC else CellType.STRING
-            val outputCell = outputRow.createCell(i, cellType)
+            val outputCell = outputRow.createCell(i, value.cellType)
+
             when (value) {
-                is Double -> outputCell.setCellValue(value)
-                is String -> outputCell.setCellValue(value)
-                else -> error("Unexpected value type: ${value.javaClass}")
+                is Number -> outputCell.setCellValue(value.value)
+                is Str -> outputCell.setCellValue(value.value)
+                is Formula -> outputCell.cellFormula = value.value
             }
 
             outputCell.cellStyle = when {
@@ -191,4 +192,18 @@ class WorkbookProcessor(private val workbook: XSSFWorkbook) {
             return style
         }
     }
+
+    private sealed class Value {
+        val cellType: CellType get() {
+            return when (this) {
+                is Number -> CellType.NUMERIC
+                is Str -> CellType.STRING
+                is Formula -> CellType.FORMULA
+            }
+        }
+    }
+    private class Number(val value: Double) : Value()
+    private class Str(val value: String) : Value()
+    private class Formula(val value: String) : Value()
+
 }
