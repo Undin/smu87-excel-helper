@@ -22,7 +22,7 @@ dependencies {
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.13.2")
 }
 
-version = "0.2"
+version = "0.3"
 
 tasks {
     compileKotlin {
