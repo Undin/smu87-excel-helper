@@ -74,7 +74,10 @@ class WorkbookProcessor(private val workbook: XSSFWorkbook) {
             if (info.material.isFromMainSupplier) {
                 outputRow.rowStyle = boldStyle
             }
-            writeToRow(info, outputRow)
+            val isLastMainSupplier = info.material.isFromMainSupplier &&
+                    (materials.getOrNull(index + 1)?.material?.isFromMainSupplier?.not() ?: true)
+
+            writeToRow(info, outputRow, writeSum = isLastMainSupplier)
         }
 
         LOG.info("End processing of `${sheet.sheetName}` sheet")
@@ -131,7 +134,7 @@ class WorkbookProcessor(private val workbook: XSSFWorkbook) {
         return builder.build()
     }
 
-    private fun writeToRow(info: MaterialInfo, outputRow: Row) {
+    private fun writeToRow(info: MaterialInfo, outputRow: Row, writeSum: Boolean) {
         val rowNum = outputRow.rowNum + 1
         for (i in 0 until 7) {
             val (value, setPrecisionStyle) = when (i) {
@@ -164,6 +167,12 @@ class WorkbookProcessor(private val workbook: XSSFWorkbook) {
                 info.material.isFromMainSupplier -> if (setPrecisionStyle) boldPrecisionStyle else boldStyle
                 setPrecisionStyle -> precisionStyle
                 else -> commonStyle
+            }
+
+            if (writeSum) {
+                val sumCell = outputRow.createCell(7)
+                sumCell.cellFormula = "SUM(G2:G$rowNum)"
+                sumCell.cellStyle = boldPrecisionStyle
             }
         }
     }
